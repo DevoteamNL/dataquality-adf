@@ -1,0 +1,43 @@
+{
+	"name": "AzureSqlTable1",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "AzureSqlDatabaseDataQ",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [
+			{
+				"name": "DATA_QUALITY_RULE_ID",
+				"type": "int",
+				"precision": 10
+			},
+			{
+				"name": "RULE_NAME",
+				"type": "varchar"
+			},
+			{
+				"name": "RULE_DESCRIPTION",
+				"type": "varchar"
+			},
+			{
+				"name": "RULE_TYPE_CODE",
+				"type": "varchar"
+			},
+			{
+				"name": "RULE_LEVEL_CODE",
+				"type": "varchar"
+			},
+			{
+				"name": "RULE_SCRIPT_TYPE_CODE",
+				"type": "varchar"
+			},
+			{
+				"name": "RULE_SCRIPT_TEXT",
+				"type": "varchar"
+			}
+		]
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

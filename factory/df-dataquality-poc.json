@@ -1,0 +1,15 @@
+{
+	"name": "df-dataquality-poc",
+	"location": "westeurope",
+	"identity": {
+		"type": "SystemAssigned,UserAssigned",
+		"principalId": "c68c16a8-61bf-4a90-bc27-66b11cdae69a",
+		"tenantId": "f82b3c62-b635-402b-afa2-a1a807bbfd42",
+		"userAssignedIdentities": {
+			"/subscriptions/41e50375-b926-4bc4-9045-348f359cf721/resourcegroups/pers-philip_mifsud-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/mi-dq-adls": {
+				"clientId": "97700b5f-cf1c-4215-b419-c9a702b08156",
+				"principalId": "a120ff7b-d1f2-4f79-8b02-7e5ff890266f"
+			}
+		}
+	}
+}

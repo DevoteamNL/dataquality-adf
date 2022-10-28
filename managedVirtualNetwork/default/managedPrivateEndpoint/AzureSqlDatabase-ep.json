@@ -1,0 +1,10 @@
+{
+	"name": "AzureSqlDatabase-ep",
+	"properties": {
+		"privateLinkResourceId": "/subscriptions/41e50375-b926-4bc4-9045-348f359cf721/resourceGroups/pers-philip_mifsud-rg/providers/Microsoft.Sql/servers/dataq2-s",
+		"groupId": "sqlServer",
+		"fqdns": [
+			"dataq2-s.database.windows.net"
+		]
+	}
+}
