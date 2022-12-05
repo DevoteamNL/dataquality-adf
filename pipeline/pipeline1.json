@@ -3,7 +3,7 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Lookup1",
+				"name": "Get Rules",
 				"type": "Lookup",
 				"dependsOn": [],
 				"policy": {
@@ -18,7 +18,7 @@
 					"source": {
 						"type": "AzureSqlSource",
 						"sqlReaderQuery": {
-							"value": "@concat('select *\nfrom dbo.DATA_QUALITY_RULE\nwhere DATASET_ID =',string(pipeline().parameters.datasetID))",
+							"value": "@concat('select *\nfrom dbo.data_quality_rules\nwhere dataset_id =',string(pipeline().parameters.datasetID))",
 							"type": "Expression"
 						},
 						"queryTimeout": "02:00:00",
@@ -32,11 +32,11 @@
 				}
 			},
 			{
-				"name": "Lookup2",
+				"name": "Get Dataset Info",
 				"type": "Lookup",
 				"dependsOn": [
 					{
-						"activity": "Lookup1",
+						"activity": "Get Rules",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -54,7 +54,7 @@
 					"source": {
 						"type": "AzureSqlSource",
 						"sqlReaderQuery": {
-							"value": "@concat(' select * from [dbo].[DATASET_INFO] where DATASET_ID  = \n', activity('Lookup1').output.value[1].DATASET_ID)",
+							"value": "@concat(' select * from [dbo].[dataset_info] where dataset_id  = \n', activity('Get Rules').output.value[0].dataset_id)",
 							"type": "Expression"
 						},
 						"queryTimeout": "02:00:00",
@@ -71,7 +71,7 @@
 				"type": "GetMetadata",
 				"dependsOn": [
 					{
-						"activity": "Lookup2",
+						"activity": "Get Dataset Info",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -91,11 +91,11 @@
 						"type": "DatasetReference",
 						"parameters": {
 							"domain": {
-								"value": "@activity('Lookup2').output.firstRow.domain",
+								"value": "@activity('Get Dataset Info').output.firstRow.domain",
 								"type": "Expression"
 							},
 							"dataset_path": {
-								"value": "@activity('Lookup2').output.firstRow.DATASET_LOCATION",
+								"value": "@activity('Get Dataset Info').output.firstRow.location",
 								"type": "Expression"
 							}
 						}
@@ -114,11 +114,17 @@
 				}
 			},
 			{
-				"name": "Data flow1",
+				"name": "Data flow",
 				"type": "ExecuteDataFlow",
 				"dependsOn": [
 					{
 						"activity": "Get Metadata1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Set total_rules",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -136,16 +142,38 @@
 					"dataflow": {
 						"referenceName": "dataflow1",
 						"type": "DataFlowReference",
+						"parameters": {
+							"rule_list": {
+								"value": "@variables('rule_list')",
+								"type": "Expression"
+							},
+							"total_rules": {
+								"value": "@int(variables('total_rules'))",
+								"type": "Expression"
+							},
+							"rule_names": {
+								"value": "@variables('rule_names')",
+								"type": "Expression"
+							},
+							"col_names": {
+								"value": "@variables('col_names')",
+								"type": "Expression"
+							}
+						},
 						"datasetParameters": {
-							"source1": {
+							"source": {
 								"domain": {
-									"value": "@activity('Lookup2').output.firstRow.domain",
+									"value": "@activity('Get Dataset Info').output.firstRow.domain",
 									"type": "Expression"
 								},
 								"dataset_path": {
-									"value": "@activity('Lookup2').output.firstRow.DATASET_LOCATION",
+									"value": "@activity('Get Dataset Info').output.firstRow.location",
 									"type": "Expression"
 								}
+							},
+							"FailedRecords": {
+								"domain": "@activity('Get Dataset Info').output.firstRow.domain",
+								"dataset_path": "@activity('Get Dataset Info').output.firstRow.location"
 							}
 						}
 					},
@@ -154,6 +182,87 @@
 						"computeType": "General"
 					},
 					"traceLevel": "Fine"
+				}
+			},
+			{
+				"name": "ForEach1",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Get Rules",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Get Rules').output.value",
+						"type": "Expression"
+					},
+					"isSequential": true,
+					"activities": [
+						{
+							"name": "Append rule expr",
+							"type": "AppendVariable",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "rule_list",
+								"value": {
+									"value": "@item().rule_expression",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Append col_names",
+							"type": "AppendVariable",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "col_names",
+								"value": {
+									"value": "@item().column_name",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Append rule_names",
+							"type": "AppendVariable",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "rule_names",
+								"value": {
+									"value": "@item().rule_name",
+									"type": "Expression"
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Set total_rules",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "ForEach1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "total_rules",
+					"value": {
+						"value": "@string(length(variables('rule_list')))",
+						"type": "Expression"
+					}
 				}
 			}
 		],
@@ -166,6 +275,20 @@
 			},
 			"endDate": {
 				"type": "string"
+			}
+		},
+		"variables": {
+			"rule_list": {
+				"type": "Array"
+			},
+			"total_rules": {
+				"type": "String"
+			},
+			"col_names": {
+				"type": "Array"
+			},
+			"rule_names": {
+				"type": "Array"
 			}
 		},
 		"annotations": [],

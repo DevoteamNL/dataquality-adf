@@ -1,5 +1,5 @@
 {
-	"name": "dataset1",
+	"name": "failed_records",
 	"properties": {
 		"linkedServiceName": {
 			"referenceName": "AdlsDQ",
@@ -7,10 +7,10 @@
 		},
 		"parameters": {
 			"domain": {
-				"type": "String"
+				"type": "string"
 			},
 			"dataset_path": {
-				"type": "String"
+				"type": "string"
 			}
 		},
 		"annotations": [],
@@ -18,21 +18,24 @@
 		"typeProperties": {
 			"location": {
 				"type": "AzureBlobFSLocation",
-				"folderPath": {
-					"value": "@dataset().dataset_path",
-					"type": "Expression"
-				},
-				"fileSystem": {
-					"value": "@dataset().domain",
-					"type": "Expression"
-				}
+				"fileName": "@dataset().dataset_path",
+				"folderPath": "results",
+				"fileSystem": "@dataset().domain"
 			},
 			"columnDelimiter": ",",
 			"escapeChar": "\\",
-			"firstRowAsHeader": true,
 			"quoteChar": "\""
 		},
-		"schema": []
-	},
-	"type": "Microsoft.DataFactory/factories/datasets"
+		"schema": [
+			{
+				"type": "String"
+			},
+			{
+				"type": "String"
+			},
+			{
+				"type": "String"
+			}
+		]
+	}
 }
