@@ -1,0 +1,79 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "df-dataquality-poc"
+		},
+		"AzureSqlDatabaseDataQ_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'AzureSqlDatabaseDataQ'"
+		},
+		"AdlsDQ_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://stdataquality01.dfs.core.windows.net/"
+		},
+		"AzureSqlDatabase-ep_properties_privateLinkResourceId": {
+			"type": "string",
+			"defaultValue": "/subscriptions/41e50375-b926-4bc4-9045-348f359cf721/resourceGroups/pers-philip_mifsud-rg/providers/Microsoft.Sql/servers/dataq2-s"
+		},
+		"AzureSqlDatabase-ep_properties_groupId": {
+			"type": "string",
+			"defaultValue": "sqlServer"
+		},
+		"AzureSqlDatabase-ep_properties_fqdns": {
+			"type": "array",
+			"defaultValue": [
+				"dataq2-s.database.windows.net"
+			]
+		},
+		"containerUri": {
+			"type": "string",
+			"metadata": "URI to storage account containing linked ARM templates"
+		},
+		"containerSasToken": {
+			"type": "string",
+			"metadata": "Sas token to storage account containing linked ARM templates"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "df-dataquality-poc_ArmTemplate_0",
+			"type": "Microsoft.Resources/deployments",
+			"apiVersion": "2018-02-01",
+			"properties": {
+				"mode": "incremental",
+				"templateLink": {
+					"uri": "[concat(parameters('containerUri'), '/ArmTemplate_0.json', parameters('containerSasToken'))]",
+					"contentVersion": "1.0.0.0"
+				},
+				"parameters": {
+					"factoryName": {
+						"value": "[parameters('factoryName')]"
+					},
+					"AzureSqlDatabaseDataQ_connectionString": {
+						"value": "[parameters('AzureSqlDatabaseDataQ_connectionString')]"
+					},
+					"AdlsDQ_properties_typeProperties_url": {
+						"value": "[parameters('AdlsDQ_properties_typeProperties_url')]"
+					},
+					"AzureSqlDatabase-ep_properties_privateLinkResourceId": {
+						"value": "[parameters('AzureSqlDatabase-ep_properties_privateLinkResourceId')]"
+					},
+					"AzureSqlDatabase-ep_properties_groupId": {
+						"value": "[parameters('AzureSqlDatabase-ep_properties_groupId')]"
+					},
+					"AzureSqlDatabase-ep_properties_fqdns": {
+						"value": "[parameters('AzureSqlDatabase-ep_properties_fqdns')]"
+					}
+				}
+			},
+			"dependsOn": []
+		}
+	]
+}

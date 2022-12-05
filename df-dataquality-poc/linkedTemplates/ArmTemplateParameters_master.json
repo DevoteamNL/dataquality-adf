@@ -1,0 +1,32 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"value": "df-dataquality-poc"
+		},
+		"AzureSqlDatabaseDataQ_connectionString": {
+			"value": ""
+		},
+		"AdlsDQ_properties_typeProperties_url": {
+			"value": "https://stdataquality01.dfs.core.windows.net/"
+		},
+		"AzureSqlDatabase-ep_properties_privateLinkResourceId": {
+			"value": "/subscriptions/41e50375-b926-4bc4-9045-348f359cf721/resourceGroups/pers-philip_mifsud-rg/providers/Microsoft.Sql/servers/dataq2-s"
+		},
+		"AzureSqlDatabase-ep_properties_groupId": {
+			"value": "sqlServer"
+		},
+		"AzureSqlDatabase-ep_properties_fqdns": {
+			"value": [
+				"dataq2-s.database.windows.net"
+			]
+		},
+		"containerUri": {
+			"value": ""
+		},
+		"containerSasToken": {
+			"value": ""
+		}
+	}
+}

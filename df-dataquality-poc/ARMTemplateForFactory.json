@@ -1,0 +1,755 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "df-dataquality-poc"
+		},
+		"AzureSqlDatabaseDataQ_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'AzureSqlDatabaseDataQ'"
+		},
+		"AdlsDQ_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://stdataquality01.dfs.core.windows.net/"
+		},
+		"AzureSqlDatabase-ep_properties_privateLinkResourceId": {
+			"type": "string",
+			"defaultValue": "/subscriptions/41e50375-b926-4bc4-9045-348f359cf721/resourceGroups/pers-philip_mifsud-rg/providers/Microsoft.Sql/servers/dataq2-s"
+		},
+		"AzureSqlDatabase-ep_properties_groupId": {
+			"type": "string",
+			"defaultValue": "sqlServer"
+		},
+		"AzureSqlDatabase-ep_properties_fqdns": {
+			"type": "array",
+			"defaultValue": [
+				"dataq2-s.database.windows.net"
+			]
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/pipeline1')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Get Rules",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": {
+									"value": "@concat('select *\nfrom dbo.data_quality_rules\nwhere dataset_id =',string(pipeline().parameters.datasetID))",
+									"type": "Expression"
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "AzureSqlTable1",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "Get Dataset Info",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "Get Rules",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": {
+									"value": "@concat(' select * from [dbo].[dataset_info] where dataset_id  = \n', activity('Get Rules').output.value[0].dataset_id)",
+									"type": "Expression"
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "AzureSqlTable1",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "Get Metadata1",
+						"type": "GetMetadata",
+						"dependsOn": [
+							{
+								"activity": "Get Dataset Info",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "dataset1",
+								"type": "DatasetReference",
+								"parameters": {
+									"domain": {
+										"value": "@activity('Get Dataset Info').output.firstRow.domain",
+										"type": "Expression"
+									},
+									"dataset_path": {
+										"value": "@activity('Get Dataset Info').output.firstRow.location",
+										"type": "Expression"
+									}
+								}
+							},
+							"fieldList": [
+								"childItems"
+							],
+							"storeSettings": {
+								"type": "AzureBlobFSReadSettings",
+								"recursive": true,
+								"enablePartitionDiscovery": false
+							},
+							"formatSettings": {
+								"type": "DelimitedTextReadSettings"
+							}
+						}
+					},
+					{
+						"name": "Data flow",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [
+							{
+								"activity": "Get Metadata1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "Set total_rules",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "dataflow1",
+								"type": "DataFlowReference",
+								"parameters": {
+									"rule_list": {
+										"value": "@variables('rule_list')",
+										"type": "Expression"
+									},
+									"total_rules": {
+										"value": "@int(variables('total_rules'))",
+										"type": "Expression"
+									},
+									"rule_names": {
+										"value": "@variables('rule_names')",
+										"type": "Expression"
+									},
+									"col_names": {
+										"value": "@variables('col_names')",
+										"type": "Expression"
+									}
+								},
+								"datasetParameters": {
+									"source": {
+										"domain": {
+											"value": "@activity('Get Dataset Info').output.firstRow.domain",
+											"type": "Expression"
+										},
+										"dataset_path": {
+											"value": "@activity('Get Dataset Info').output.firstRow.location",
+											"type": "Expression"
+										}
+									},
+									"Results": {},
+									"FailedRecords": {
+										"domain": "@activity('Get Dataset Info').output.firstRow.domain",
+										"dataset_path": "@activity('Get Dataset Info').output.firstRow.location"
+									}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					},
+					{
+						"name": "ForEach1",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Get Rules",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Get Rules').output.value",
+								"type": "Expression"
+							},
+							"isSequential": true,
+							"activities": [
+								{
+									"name": "Append rule expr",
+									"type": "AppendVariable",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "rule_list",
+										"value": {
+											"value": "@item().rule_expression",
+											"type": "Expression"
+										}
+									}
+								},
+								{
+									"name": "Append col_names",
+									"type": "AppendVariable",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "col_names",
+										"value": {
+											"value": "@item().column_name",
+											"type": "Expression"
+										}
+									}
+								},
+								{
+									"name": "Append rule_names",
+									"type": "AppendVariable",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "rule_names",
+										"value": {
+											"value": "@item().rule_name",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "Set total_rules",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "ForEach1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "total_rules",
+							"value": {
+								"value": "@string(length(variables('rule_list')))",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"parameters": {
+					"datasetID": {
+						"type": "int"
+					},
+					"startDate": {
+						"type": "string"
+					},
+					"endDate": {
+						"type": "string"
+					}
+				},
+				"variables": {
+					"rule_list": {
+						"type": "Array"
+					},
+					"total_rules": {
+						"type": "String"
+					},
+					"col_names": {
+						"type": "Array"
+					},
+					"rule_names": {
+						"type": "Array"
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2022-10-28T14:22:09Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/AzureSqlTable1')]",
+				"[concat(variables('factoryId'), '/datasets/dataset1')]",
+				"[concat(variables('factoryId'), '/dataflows/dataflow1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzureSqlTable1')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureSqlDatabaseDataQ",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "DATA_QUALITY_RULE_ID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "RULE_NAME",
+						"type": "varchar"
+					},
+					{
+						"name": "RULE_DESCRIPTION",
+						"type": "varchar"
+					},
+					{
+						"name": "RULE_TYPE_CODE",
+						"type": "varchar"
+					},
+					{
+						"name": "RULE_LEVEL_CODE",
+						"type": "varchar"
+					},
+					{
+						"name": "RULE_SCRIPT_TYPE_CODE",
+						"type": "varchar"
+					},
+					{
+						"name": "RULE_SCRIPT_TEXT",
+						"type": "varchar"
+					}
+				],
+				"typeProperties": {}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureSqlDatabaseDataQ')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Json1')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AdlsDQ",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "Json",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": "employee/result",
+						"fileSystem": "devoteam"
+					}
+				},
+				"schema": {}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AdlsDQ')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/data_quality_rule_results')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureSqlDatabaseDataQ",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "total_records",
+						"type": "bigint",
+						"precision": 19
+					},
+					{
+						"name": "rule_name",
+						"type": "varchar"
+					},
+					{
+						"name": "failed_records",
+						"type": "int",
+						"precision": 10
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "data_quality_rule_results"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureSqlDatabaseDataQ')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/dataset1')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AdlsDQ",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"domain": {
+						"type": "String"
+					},
+					"dataset_path": {
+						"type": "String"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": {
+							"value": "@dataset().dataset_path",
+							"type": "Expression"
+						},
+						"fileSystem": {
+							"value": "@dataset().domain",
+							"type": "Expression"
+						}
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AdlsDQ')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/failed_records')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AdlsDQ",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"domain": {
+						"type": "string"
+					},
+					"dataset_path": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@dataset().dataset_path",
+							"type": "Expression"
+						},
+						"folderPath": "results",
+						"fileSystem": {
+							"value": "@dataset().domain",
+							"type": "Expression"
+						}
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AdlsDQ')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AdlsDQ')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('AdlsDQ_properties_typeProperties_url')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzureSqlDatabaseDataQ')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"connectionString": "[parameters('AzureSqlDatabaseDataQ_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/integrationRuntime1')]",
+			"type": "Microsoft.DataFactory/factories/integrationRuntimes",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "Managed",
+				"typeProperties": {
+					"computeProperties": {
+						"location": "West Europe",
+						"dataFlowProperties": {
+							"computeType": "General",
+							"coreCount": 8,
+							"timeToLive": 10,
+							"cleanup": false
+						},
+						"pipelineExternalComputeScaleProperties": {
+							"timeToLive": 60
+						}
+					}
+				},
+				"managedVirtualNetwork": {
+					"type": "ManagedVirtualNetworkReference",
+					"referenceName": "default"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/managedVirtualNetworks/default')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/dataflow1')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "dataset1",
+								"type": "DatasetReference"
+							},
+							"name": "source"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "data_quality_rule_results",
+								"type": "DatasetReference"
+							},
+							"name": "Results"
+						},
+						{
+							"dataset": {
+								"referenceName": "failed_records",
+								"type": "DatasetReference"
+							},
+							"name": "FailedRecords"
+						}
+					],
+					"transformations": [
+						{
+							"name": "derivedColumn"
+						},
+						{
+							"name": "aggregate"
+						},
+						{
+							"name": "filterFailedRecords"
+						},
+						{
+							"name": "unpivot"
+						},
+						{
+							"name": "AlterRow"
+						}
+					],
+					"scriptLines": [
+						"parameters{",
+						"     rule_list as string[],",
+						"     total_rules as integer,",
+						"     rule_names as string[],",
+						"     col_names as string[]",
+						"}",
+						"source(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> source",
+						"source derive(each(match(iif(1<=$total_rules,equalsIgnoreCase(name,$col_names[1]),false())), $rule_names[1] = expr(expr('iif(1<=$total_rules, $rule_list[1], toString(false()))'))),",
+						"          each(match(iif(2<=$total_rules,equalsIgnoreCase(name,$col_names[2]),false())), $rule_names[2] = expr(expr('iif(2<=$total_rules, $rule_list[2], toString(false()))'))),",
+						"          each(match(iif(3<=$total_rules,equalsIgnoreCase(name,$col_names[3]),false())), $rule_names[3] = expr(expr('iif(3<=$total_rules, $rule_list[3], toString(false()))'))),",
+						"          each(match(iif(4<=$total_rules,equalsIgnoreCase(name,$col_names[4]),false())), $rule_names[4] = expr(expr('iif(4<=$total_rules, $rule_list[4], toString(false()))'))),",
+						"          each(match(iif(5<=$total_rules,equalsIgnoreCase(name,$col_names[5]),false())), $rule_names[5] = expr(expr('iif(5<=$total_rules, $rule_list[5], toString(false()))'))),",
+						"          each(match(iif(6<=$total_rules,equalsIgnoreCase(name,$col_names[6]),false())), $rule_names[6] = expr(expr('iif(6<=$total_rules, $rule_list[6], toString(false()))'))),",
+						"          each(match(iif(7<=$total_rules,equalsIgnoreCase(name,$col_names[7]),false())), $rule_names[7] = expr(expr('iif(7<=$total_rules, $rule_list[7], toString(false()))'))),",
+						"          each(match(iif(8<=$total_rules,equalsIgnoreCase(name,$col_names[8]),false())), $rule_names[8] = expr(expr('iif(8<=$total_rules, $rule_list[8], toString(false()))'))),",
+						"          each(match(iif(9<=$total_rules,equalsIgnoreCase(name,$col_names[9]),false())), $rule_names[9] = expr(expr('iif(9<=$total_rules, $rule_list[9], toString(false()))'))),",
+						"          each(match(iif(10<=$total_rules,equalsIgnoreCase(name,$col_names[10]),false())), $rule_names[10] = expr(expr('iif(10<=$total_rules, $rule_list[10], toString(false()))')))) ~> derivedColumn",
+						"derivedColumn aggregate(total_records = count($rule_names[1]),",
+						"          each(match(name==$rule_names[1]), $$ = toInteger(sum(toInteger($$)))),",
+						"          each(match(name==$rule_names[2]), $$ = toInteger(sum(toInteger($$)))),",
+						"          each(match(name==$rule_names[3]), $$ = toInteger(sum(toInteger($$)))),",
+						"          each(match(name==$rule_names[4]), $$ = toInteger(sum(toInteger($$)))),",
+						"          each(match(name==$rule_names[5]), $$ = toInteger(sum(toInteger($$)))),",
+						"          each(match(name==$rule_names[6]), $$ = toInteger(sum(toInteger($$)))),",
+						"          each(match(name==$rule_names[7]), $$ = toInteger(sum(toInteger($$)))),",
+						"          each(match(name==$rule_names[8]), $$ = toInteger(sum(toInteger($$)))),",
+						"          each(match(name==$rule_names[9]), $$ = toInteger(sum(toInteger($$)))),",
+						"          each(match(name==$rule_names[10]), $$ = toInteger(sum(toInteger($$))))) ~> aggregate",
+						"derivedColumn filter(toInteger(byName($rule_names[1]))==1 || toInteger(byName($rule_names[2]))==1 || toInteger(byName($rule_names[3]))==1 || toInteger(byName($rule_names[4]))==1 || toInteger(byName($rule_names[5]))==1 || toInteger(byName($rule_names[6]))==1 || toInteger(byName($rule_names[7]))==1 || toInteger(byName($rule_names[8]))==1 || toInteger(byName($rule_names[9]))==1 || toInteger(byName($rule_names[10]))==1) ~> filterFailedRecords",
+						"aggregate unpivot(output(",
+						"          rule_name as string,",
+						"          failed_records as integer",
+						"     ),",
+						"     ungroupBy(total_records),",
+						"     lateral: false,",
+						"     ignoreNullPivots: false) ~> unpivot",
+						"unpivot alterRow(upsertIf(true())) ~> AlterRow",
+						"AlterRow sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     input(",
+						"          total_records as long,",
+						"          rule_name as string,",
+						"          failed_records as integer",
+						"     ),",
+						"     deletable:false,",
+						"     insertable:true,",
+						"     updateable:false,",
+						"     upsertable:true,",
+						"     keys:['rule_name'],",
+						"     format: 'table',",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     errorHandlingOption: 'stopOnFirstError',",
+						"     preCommands: [],",
+						"     postCommands: []) ~> Results",
+						"filterFailedRecords sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     input(",
+						"          Column_1 as string,",
+						"          Column_2 as string,",
+						"          Column_3 as string",
+						"     ),",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> FailedRecords"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/dataset1')]",
+				"[concat(variables('factoryId'), '/datasets/data_quality_rule_results')]",
+				"[concat(variables('factoryId'), '/datasets/failed_records')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/default')]",
+			"type": "Microsoft.DataFactory/factories/managedVirtualNetworks",
+			"apiVersion": "2018-06-01",
+			"properties": {},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/default/AzureSqlDatabase-ep')]",
+			"type": "Microsoft.DataFactory/factories/managedVirtualNetworks/managedPrivateEndpoints",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"privateLinkResourceId": "[parameters('AzureSqlDatabase-ep_properties_privateLinkResourceId')]",
+				"groupId": "[parameters('AzureSqlDatabase-ep_properties_groupId')]",
+				"fqdns": "[parameters('AzureSqlDatabase-ep_properties_fqdns')]"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/managedVirtualNetworks/default')]"
+			]
+		}
+	]
+}
