@@ -1,0 +1,12 @@
+{
+	"name": "daily precipitation sum",
+	"properties": {
+		"annotations": [],
+		"type": "RestService",
+		"typeProperties": {
+			"url": "https://api.dataplatform.knmi.nl/open-data/v1/datasets/Rd1/versions/5/files",
+			"enableServerCertificateValidation": true,
+			"authenticationType": "Anonymous"
+		}
+	}
+}
