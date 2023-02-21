@@ -299,7 +299,7 @@
 							"typeProperties": {
 								"source": {
 									"type": "AzureSqlSource",
-									"sqlReaderQuery": "@concat(' select rule_expression from dbo.data_quality_rules_new where rule_id = ', @activity('Get Applied Rules').output.value[0][rule_id])",
+									"sqlReaderQuery": "@concat(' select rule_expression from dbo.data_quality_rules_new where rule_id = ', @item[0].rule_id))",
 									"queryTimeout": "02:00:00",
 									"partitionOption": "None"
 								},
