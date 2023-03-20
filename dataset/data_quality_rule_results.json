@@ -9,7 +9,7 @@
 		"type": "AzureSqlTable",
 		"schema": [
 			{
-				"name": "total_records",
+				"name": "total_record",
 				"type": "bigint",
 				"precision": 19
 			},
@@ -18,9 +18,13 @@
 				"type": "varchar"
 			},
 			{
-				"name": "failed_records",
+				"name": "failed_record",
 				"type": "int",
 				"precision": 10
+			},
+			{
+				"name": "file_name",
+				"type": "varchar"
 			}
 		],
 		"typeProperties": {

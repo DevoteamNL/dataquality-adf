@@ -1,0 +1,129 @@
+{
+	"name": "dataflow_csv",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "csv_source",
+						"type": "DatasetReference"
+					},
+					"name": "source"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "data_quality_rule_results",
+						"type": "DatasetReference"
+					},
+					"name": "Results"
+				},
+				{
+					"dataset": {
+						"referenceName": "failed_records",
+						"type": "DatasetReference"
+					},
+					"name": "FailedRecords"
+				}
+			],
+			"transformations": [
+				{
+					"name": "derivedColumn"
+				},
+				{
+					"name": "aggregate"
+				},
+				{
+					"name": "filterFailedRecords"
+				},
+				{
+					"name": "unpivot"
+				},
+				{
+					"name": "addFileNameandTS"
+				},
+				{
+					"name": "AlterRow1"
+				}
+			],
+			"scriptLines": [
+				"parameters{",
+				"     rule_list as string[],",
+				"     total_rules as integer,",
+				"     rule_names as string[],",
+				"     col_names as string[],",
+				"     file_name as string",
+				"}",
+				"source(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> source",
+				"source derive(each(match(iif(1<=$total_rules,equalsIgnoreCase(name,$col_names[1]),false())), $rule_names[1] = expr(expr('iif(1<=$total_rules, $rule_list[1], toString(false()))'))),",
+				"          each(match(iif(2<=$total_rules,equalsIgnoreCase(name,$col_names[2]),false())), $rule_names[2] = expr(expr('iif(2<=$total_rules, $rule_list[2], toString(false()))'))),",
+				"          each(match(iif(3<=$total_rules,equalsIgnoreCase(name,$col_names[3]),false())), $rule_names[3] = expr(expr('iif(3<=$total_rules, $rule_list[3], toString(false()))'))),",
+				"          each(match(iif(4<=$total_rules,equalsIgnoreCase(name,$col_names[4]),false())), $rule_names[4] = expr(expr('iif(4<=$total_rules, $rule_list[4], toString(false()))'))),",
+				"          each(match(iif(5<=$total_rules,equalsIgnoreCase(name,$col_names[5]),false())), $rule_names[5] = expr(expr('iif(5<=$total_rules, $rule_list[5], toString(false()))'))),",
+				"          each(match(iif(6<=$total_rules,equalsIgnoreCase(name,$col_names[6]),false())), $rule_names[6] = expr(expr('iif(6<=$total_rules, $rule_list[6], toString(false()))'))),",
+				"          each(match(iif(7<=$total_rules,equalsIgnoreCase(name,$col_names[7]),false())), $rule_names[7] = expr(expr('iif(7<=$total_rules, $rule_list[7], toString(false()))'))),",
+				"          each(match(iif(8<=$total_rules,equalsIgnoreCase(name,$col_names[8]),false())), $rule_names[8] = expr(expr('iif(8<=$total_rules, $rule_list[8], toString(false()))'))),",
+				"          each(match(iif(9<=$total_rules,equalsIgnoreCase(name,$col_names[9]),false())), $rule_names[9] = expr(expr('iif(9<=$total_rules, $rule_list[9], toString(false()))'))),",
+				"          each(match(iif(10<=$total_rules,equalsIgnoreCase(name,$col_names[10]),false())), $rule_names[10] = expr(expr('iif(10<=$total_rules, $rule_list[10], toString(false()))')))) ~> derivedColumn",
+				"derivedColumn aggregate(total_records = count($rule_names[1]),",
+				"          each(match(name==$rule_names[1]), $$ = toInteger(sum(toInteger($$)))),",
+				"          each(match(name==$rule_names[2]), $$ = toInteger(sum(toInteger($$)))),",
+				"          each(match(name==$rule_names[3]), $$ = toInteger(sum(toInteger($$)))),",
+				"          each(match(name==$rule_names[4]), $$ = toInteger(sum(toInteger($$)))),",
+				"          each(match(name==$rule_names[5]), $$ = toInteger(sum(toInteger($$)))),",
+				"          each(match(name==$rule_names[6]), $$ = toInteger(sum(toInteger($$)))),",
+				"          each(match(name==$rule_names[7]), $$ = toInteger(sum(toInteger($$)))),",
+				"          each(match(name==$rule_names[8]), $$ = toInteger(sum(toInteger($$)))),",
+				"          each(match(name==$rule_names[9]), $$ = toInteger(sum(toInteger($$)))),",
+				"          each(match(name==$rule_names[10]), $$ = toInteger(sum(toInteger($$))))) ~> aggregate",
+				"derivedColumn filter(toInteger(byName($rule_names[1]))==1 || toInteger(byName($rule_names[2]))==1 || toInteger(byName($rule_names[3]))==1 || toInteger(byName($rule_names[4]))==1 || toInteger(byName($rule_names[5]))==1 || toInteger(byName($rule_names[6]))==1 || toInteger(byName($rule_names[7]))==1 || toInteger(byName($rule_names[8]))==1 || toInteger(byName($rule_names[9]))==1 || toInteger(byName($rule_names[10]))==1) ~> filterFailedRecords",
+				"aggregate unpivot(output(",
+				"          rule_name as string,",
+				"          failed_records as integer",
+				"     ),",
+				"     ungroupBy(total_records),",
+				"     lateral: false,",
+				"     ignoreNullPivots: false) ~> unpivot",
+				"unpivot derive(file_name = $file_name,",
+				"          insert_ts = currentTimestamp()) ~> addFileNameandTS",
+				"addFileNameandTS alterRow(upsertIf(true())) ~> AlterRow1",
+				"AlterRow1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          total_record as long,",
+				"          rule_name as string,",
+				"          failed_record as integer,",
+				"          file_name as string",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:true,",
+				"     keys:['rule_name','file_name'],",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError',",
+				"     preCommands: [],",
+				"     postCommands: []) ~> Results",
+				"filterFailedRecords sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          Column_1 as string,",
+				"          Column_2 as string,",
+				"          Column_3 as string",
+				"     ),",
+				"     truncate: true,",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> FailedRecords"
+			]
+		}
+	}
+}

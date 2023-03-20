@@ -1,5 +1,5 @@
 {
-	"name": "dataset1",
+	"name": "csv_source",
 	"properties": {
 		"linkedServiceName": {
 			"referenceName": "AdlsDQ",
@@ -11,6 +11,9 @@
 			},
 			"dataset_path": {
 				"type": "String"
+			},
+			"file_name": {
+				"type": "string"
 			}
 		},
 		"annotations": [],
@@ -18,6 +21,10 @@
 		"typeProperties": {
 			"location": {
 				"type": "AzureBlobFSLocation",
+				"fileName": {
+					"value": "@dataset().file_name",
+					"type": "Expression"
+				},
 				"folderPath": {
 					"value": "@dataset().dataset_path",
 					"type": "Expression"

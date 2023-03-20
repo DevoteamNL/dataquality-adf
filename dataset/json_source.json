@@ -1,5 +1,5 @@
 {
-	"name": "failed_records",
+	"name": "json_source",
 	"properties": {
 		"linkedServiceName": {
 			"referenceName": "AdlsDQ",
@@ -17,34 +17,24 @@
 			}
 		},
 		"annotations": [],
-		"type": "DelimitedText",
+		"type": "Json",
 		"typeProperties": {
 			"location": {
 				"type": "AzureBlobFSLocation",
+				"fileName": {
+					"value": "@dataset().file_name",
+					"type": "Expression"
+				},
 				"folderPath": {
-					"value": "@concat('results', '/', dataset().dataset_path, '/', dataset().file_name)",
+					"value": "@dataset().dataset_path",
 					"type": "Expression"
 				},
 				"fileSystem": {
 					"value": "@dataset().domain",
 					"type": "Expression"
 				}
-			},
-			"columnDelimiter": ",",
-			"escapeChar": "\\",
-			"firstRowAsHeader": true,
-			"quoteChar": "\""
-		},
-		"schema": [
-			{
-				"type": "String"
-			},
-			{
-				"type": "String"
-			},
-			{
-				"type": "String"
 			}
-		]
+		},
+		"schema": {}
 	}
 }

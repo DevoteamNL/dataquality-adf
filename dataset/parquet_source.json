@@ -1,5 +1,5 @@
 {
-	"name": "failed_records",
+	"name": "parquet_source",
 	"properties": {
 		"linkedServiceName": {
 			"referenceName": "AdlsDQ",
@@ -17,12 +17,16 @@
 			}
 		},
 		"annotations": [],
-		"type": "DelimitedText",
+		"type": "Parquet",
 		"typeProperties": {
 			"location": {
 				"type": "AzureBlobFSLocation",
+				"fileName": {
+					"value": "@dataset().file_name",
+					"type": "Expression"
+				},
 				"folderPath": {
-					"value": "@concat('results', '/', dataset().dataset_path, '/', dataset().file_name)",
+					"value": "@dataset().dataset_path",
 					"type": "Expression"
 				},
 				"fileSystem": {
@@ -30,21 +34,8 @@
 					"type": "Expression"
 				}
 			},
-			"columnDelimiter": ",",
-			"escapeChar": "\\",
-			"firstRowAsHeader": true,
-			"quoteChar": "\""
+			"compressionCodec": "snappy"
 		},
-		"schema": [
-			{
-				"type": "String"
-			},
-			{
-				"type": "String"
-			},
-			{
-				"type": "String"
-			}
-		]
+		"schema": []
 	}
 }

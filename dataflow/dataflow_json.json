@@ -1,12 +1,12 @@
 {
-	"name": "dataflow1",
+	"name": "dataflow_json",
 	"properties": {
 		"type": "MappingDataFlow",
 		"typeProperties": {
 			"sources": [
 				{
 					"dataset": {
-						"referenceName": "dataset1",
+						"referenceName": "json_source",
 						"type": "DatasetReference"
 					},
 					"name": "source"
@@ -42,7 +42,10 @@
 					"name": "unpivot"
 				},
 				{
-					"name": "AlterRow"
+					"name": "addFileNameandTS"
+				},
+				{
+					"name": "AlterRow1"
 				}
 			],
 			"scriptLines": [
@@ -50,11 +53,13 @@
 				"     rule_list as string[],",
 				"     total_rules as integer,",
 				"     rule_names as string[],",
-				"     col_names as string[]",
+				"     col_names as string[],",
+				"     file_name as string",
 				"}",
 				"source(allowSchemaDrift: true,",
 				"     validateSchema: false,",
-				"     ignoreNoFilesFound: false) ~> source",
+				"     ignoreNoFilesFound: false,",
+				"     documentForm: 'documentPerLine') ~> source",
 				"source derive(each(match(iif(1<=$total_rules,equalsIgnoreCase(name,$col_names[1]),false())), $rule_names[1] = expr(expr('iif(1<=$total_rules, $rule_list[1], toString(false()))'))),",
 				"          each(match(iif(2<=$total_rules,equalsIgnoreCase(name,$col_names[2]),false())), $rule_names[2] = expr(expr('iif(2<=$total_rules, $rule_list[2], toString(false()))'))),",
 				"          each(match(iif(3<=$total_rules,equalsIgnoreCase(name,$col_names[3]),false())), $rule_names[3] = expr(expr('iif(3<=$total_rules, $rule_list[3], toString(false()))'))),",
@@ -84,19 +89,22 @@
 				"     ungroupBy(total_records),",
 				"     lateral: false,",
 				"     ignoreNullPivots: false) ~> unpivot",
-				"unpivot alterRow(upsertIf(true())) ~> AlterRow",
-				"AlterRow sink(allowSchemaDrift: true,",
+				"unpivot derive(file_name = $file_name,",
+				"          insert_ts = currentTimestamp()) ~> addFileNameandTS",
+				"addFileNameandTS alterRow(upsertIf(true())) ~> AlterRow1",
+				"AlterRow1 sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     input(",
-				"          total_records as long,",
+				"          total_record as long,",
 				"          rule_name as string,",
-				"          failed_records as integer",
+				"          failed_record as integer,",
+				"          file_name as string",
 				"     ),",
 				"     deletable:false,",
 				"     insertable:true,",
 				"     updateable:false,",
 				"     upsertable:true,",
-				"     keys:['rule_name'],",
+				"     keys:['rule_name','file_name'],",
 				"     format: 'table',",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true,",

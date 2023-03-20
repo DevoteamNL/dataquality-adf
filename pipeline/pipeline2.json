@@ -1,9 +1,9 @@
 {
-	"name": "pipeline1",
+	"name": "pipeline2",
 	"properties": {
 		"activities": [
 			{
-				"name": "Get Rules",
+				"name": "Get Dataset Info",
 				"type": "Lookup",
 				"dependsOn": [],
 				"policy": {
@@ -18,43 +18,7 @@
 					"source": {
 						"type": "AzureSqlSource",
 						"sqlReaderQuery": {
-							"value": "@concat('select *\nfrom dbo.data_quality_rules\nwhere dataset_id =',string(pipeline().parameters.datasetID))",
-							"type": "Expression"
-						},
-						"queryTimeout": "02:00:00",
-						"partitionOption": "None"
-					},
-					"dataset": {
-						"referenceName": "AzureSqlTable1",
-						"type": "DatasetReference"
-					},
-					"firstRowOnly": false
-				}
-			},
-			{
-				"name": "Get Dataset Info",
-				"type": "Lookup",
-				"dependsOn": [
-					{
-						"activity": "Get Rules",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"source": {
-						"type": "AzureSqlSource",
-						"sqlReaderQuery": {
-							"value": "@concat(' select * from [dbo].[dataset_info] where dataset_id  = \n', activity('Get Rules').output.value[0].dataset_id)",
+							"value": "@concat(' select * from [dbo].[dataset_info] where dataset_id  = \n', string(pipeline().parameters.datasetID))",
 							"type": "Expression"
 						},
 						"queryTimeout": "02:00:00",
@@ -123,72 +87,11 @@
 				}
 			},
 			{
-				"name": "ForEach",
-				"type": "ForEach",
-				"dependsOn": [
-					{
-						"activity": "Get Rules",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"userProperties": [],
-				"typeProperties": {
-					"items": {
-						"value": "@activity('Get Rules').output.value",
-						"type": "Expression"
-					},
-					"isSequential": true,
-					"activities": [
-						{
-							"name": "Append rule expr",
-							"type": "AppendVariable",
-							"dependsOn": [],
-							"userProperties": [],
-							"typeProperties": {
-								"variableName": "rule_list",
-								"value": {
-									"value": "@item().rule_expression",
-									"type": "Expression"
-								}
-							}
-						},
-						{
-							"name": "Append col_names",
-							"type": "AppendVariable",
-							"dependsOn": [],
-							"userProperties": [],
-							"typeProperties": {
-								"variableName": "col_names",
-								"value": {
-									"value": "@item().column_name",
-									"type": "Expression"
-								}
-							}
-						},
-						{
-							"name": "Append rule_names",
-							"type": "AppendVariable",
-							"dependsOn": [],
-							"userProperties": [],
-							"typeProperties": {
-								"variableName": "rule_names",
-								"value": {
-									"value": "@item().rule_name",
-									"type": "Expression"
-								}
-							}
-						}
-					]
-				}
-			},
-			{
 				"name": "Set total_rules",
 				"type": "SetVariable",
 				"dependsOn": [
 					{
-						"activity": "ForEach",
+						"activity": "ForEachRule",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -298,7 +201,8 @@
 															},
 															"FailedRecords": {
 																"domain": "@activity('Get Dataset Info').output.firstRow.domain",
-																"dataset_path": "@activity('Get Dataset Info').output.firstRow.location"
+																"dataset_path": "@activity('Get Dataset Info').output.firstRow.location",
+																"file_name": "@variables('file_name')"
 															}
 														}
 													},
@@ -363,7 +267,8 @@
 															},
 															"FailedRecords": {
 																"domain": "@activity('Get Dataset Info').output.firstRow.domain",
-																"dataset_path": "@activity('Get Dataset Info').output.firstRow.location"
+																"dataset_path": "@activity('Get Dataset Info').output.firstRow.location",
+																"file_name": "@variables('file_name')"
 															}
 														}
 													},
@@ -428,7 +333,8 @@
 															},
 															"FailedRecords": {
 																"domain": "@activity('Get Dataset Info').output.firstRow.domain",
-																"dataset_path": "@activity('Get Dataset Info').output.firstRow.location"
+																"dataset_path": "@activity('Get Dataset Info').output.firstRow.location",
+																"file_name": "@variables('file_name')"
 															}
 														}
 													},
@@ -471,6 +377,209 @@
 						}
 					]
 				}
+			},
+			{
+				"name": "ForEachRule",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Get User Input",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Get Dataset Info",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Get user input').output.value",
+						"type": "Expression"
+					},
+					"isSequential": true,
+					"activities": [
+						{
+							"name": "Get rule template",
+							"type": "Lookup",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": {
+										"value": "@concat('select *\nfrom dbo.data_quality_rules_new\nwhere rule_id =',string(item().rule_id))",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"dataset": {
+									"referenceName": "AzureSqlTable1",
+									"type": "DatasetReference"
+								}
+							}
+						},
+						{
+							"name": "Compose rules",
+							"type": "Switch",
+							"dependsOn": [
+								{
+									"activity": "Get rule template",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"on": {
+									"value": "@string(activity('Get rule template').output.firstRow.num_params)",
+									"type": "Expression"
+								},
+								"cases": [
+									{
+										"value": "1",
+										"activities": [
+											{
+												"name": "Rules with 1 param",
+												"type": "SetVariable",
+												"dependsOn": [],
+												"userProperties": [],
+												"typeProperties": {
+													"variableName": "rule_expr",
+													"value": {
+														"value": "@concat(split(string(activity('Get rule template').output.firstRow.rule_expression), '{}')[0], item().column_name, split(string(activity('Get rule template').output.firstRow.rule_expression), '{}')[1], split(string(item().extra_params), ',')[0], split(string(activity('Get rule template').output.firstRow.rule_expression), '{}')[2])",
+														"type": "Expression"
+													}
+												}
+											}
+										]
+									},
+									{
+										"value": "2",
+										"activities": [
+											{
+												"name": "Rules with 2 params",
+												"type": "SetVariable",
+												"dependsOn": [],
+												"userProperties": [],
+												"typeProperties": {
+													"variableName": "rule_expr",
+													"value": {
+														"value": "@concat(split(string(activity('Get rule template').output.firstRow.rule_expression), '{}')[0], item().column_name, split(string(activity('Get rule template').output.firstRow.rule_expression), '{}')[1], split(string(item().extra_params), ',')[0], split(string(activity('Get rule template').output.firstRow.rule_expression), '{}')[2], split(string(item().extra_params), ',')[1], split(string(activity('Get rule template').output.firstRow.rule_expression), '{}')[3])",
+														"type": "Expression"
+													}
+												}
+											}
+										]
+									}
+								],
+								"defaultActivities": [
+									{
+										"name": "Rules no param",
+										"type": "SetVariable",
+										"dependsOn": [],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "rule_expr",
+											"value": {
+												"value": "@concat(split(string(activity('Get rule template').output.firstRow.rule_expression), '{}')[0], item().column_name, split(string(activity('Get rule template').output.firstRow.rule_expression), '{}')[1])",
+												"type": "Expression"
+											}
+										}
+									}
+								]
+							}
+						},
+						{
+							"name": "Append to rule list",
+							"type": "AppendVariable",
+							"dependsOn": [
+								{
+									"activity": "Compose rules",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "rule_list",
+								"value": {
+									"value": "@variables('rule_expr')",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Append column names",
+							"type": "AppendVariable",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "col_names",
+								"value": {
+									"value": "@item().column_name",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Append rule names",
+							"type": "AppendVariable",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "rule_names",
+								"value": {
+									"value": "@item().applied_rule_name",
+									"type": "Expression"
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Get User Input",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": {
+							"value": "@concat('select *\nfrom dbo.data_quality_user_input\nwhere dataset_id =',string(pipeline().parameters.datasetID))",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "AzureSqlTable1",
+						"type": "DatasetReference"
+					},
+					"firstRowOnly": false
+				}
 			}
 		],
 		"parameters": {
@@ -504,9 +613,6 @@
 			},
 			"rule_expr": {
 				"type": "String"
-			},
-			"broken_expr": {
-				"type": "Array"
 			}
 		},
 		"annotations": [],
