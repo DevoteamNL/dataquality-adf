@@ -107,7 +107,7 @@
 						}
 					},
 					{
-						"name": "Get Metadata1",
+						"name": "Get Metadata",
 						"type": "GetMetadata",
 						"dependsOn": [
 							{
@@ -127,7 +127,7 @@
 						"userProperties": [],
 						"typeProperties": {
 							"dataset": {
-								"referenceName": "dataset1",
+								"referenceName": "csv_source",
 								"type": "DatasetReference",
 								"parameters": {
 									"domain": {
@@ -137,7 +137,8 @@
 									"dataset_path": {
 										"value": "@activity('Get Dataset Info').output.firstRow.location",
 										"type": "Expression"
-									}
+									},
+									"file_name": "/"
 								}
 							},
 							"fieldList": [
@@ -146,6 +147,14 @@
 							"storeSettings": {
 								"type": "AzureBlobFSReadSettings",
 								"recursive": true,
+								"modifiedDatetimeStart": {
+									"value": "@pipeline().parameters.startTime",
+									"type": "Expression"
+								},
+								"modifiedDatetimeEnd": {
+									"value": "@pipeline().parameters.endTime",
+									"type": "Expression"
+								},
 								"enablePartitionDiscovery": false
 							},
 							"formatSettings": {
@@ -154,80 +163,7 @@
 						}
 					},
 					{
-						"name": "Data flow",
-						"type": "ExecuteDataFlow",
-						"dependsOn": [
-							{
-								"activity": "Get Metadata1",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							},
-							{
-								"activity": "Set total_rules",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"dataflow": {
-								"referenceName": "dataflow1",
-								"type": "DataFlowReference",
-								"parameters": {
-									"rule_list": {
-										"value": "@variables('rule_list')",
-										"type": "Expression"
-									},
-									"total_rules": {
-										"value": "@int(variables('total_rules'))",
-										"type": "Expression"
-									},
-									"rule_names": {
-										"value": "@variables('rule_names')",
-										"type": "Expression"
-									},
-									"col_names": {
-										"value": "@variables('col_names')",
-										"type": "Expression"
-									}
-								},
-								"datasetParameters": {
-									"source": {
-										"domain": {
-											"value": "@activity('Get Dataset Info').output.firstRow.domain",
-											"type": "Expression"
-										},
-										"dataset_path": {
-											"value": "@activity('Get Dataset Info').output.firstRow.location",
-											"type": "Expression"
-										}
-									},
-									"Results": {},
-									"FailedRecords": {
-										"domain": "@activity('Get Dataset Info').output.firstRow.domain",
-										"dataset_path": "@activity('Get Dataset Info').output.firstRow.location"
-									}
-								}
-							},
-							"staging": {},
-							"compute": {
-								"coreCount": 8,
-								"computeType": "General"
-							},
-							"traceLevel": "Fine"
-						}
-					},
-					{
-						"name": "ForEach1",
+						"name": "ForEach",
 						"type": "ForEach",
 						"dependsOn": [
 							{
@@ -292,7 +228,7 @@
 						"type": "SetVariable",
 						"dependsOn": [
 							{
-								"activity": "ForEach1",
+								"activity": "ForEach",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -306,6 +242,293 @@
 								"type": "Expression"
 							}
 						}
+					},
+					{
+						"name": "ForEachFiles",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Get Metadata",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "Set total_rules",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Get Metadata').output.childItems",
+								"type": "Expression"
+							},
+							"isSequential": true,
+							"activities": [
+								{
+									"name": "Switch File Type",
+									"type": "Switch",
+									"dependsOn": [
+										{
+											"activity": "Set file_name variable",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"on": {
+											"value": "@activity('Get Dataset Info').output.firstRow.file_type",
+											"type": "Expression"
+										},
+										"cases": [
+											{
+												"value": "csv",
+												"activities": [
+													{
+														"name": "Data flow csv",
+														"type": "ExecuteDataFlow",
+														"dependsOn": [],
+														"policy": {
+															"timeout": "0.12:00:00",
+															"retry": 0,
+															"retryIntervalInSeconds": 30,
+															"secureOutput": false,
+															"secureInput": false
+														},
+														"userProperties": [],
+														"typeProperties": {
+															"dataflow": {
+																"referenceName": "dataflow_csv",
+																"type": "DataFlowReference",
+																"parameters": {
+																	"rule_list": {
+																		"value": "@variables('rule_list')",
+																		"type": "Expression"
+																	},
+																	"total_rules": {
+																		"value": "@variables('total_rules')",
+																		"type": "Expression"
+																	},
+																	"rule_names": {
+																		"value": "@variables('rule_names')",
+																		"type": "Expression"
+																	},
+																	"col_names": {
+																		"value": "@variables('col_names')",
+																		"type": "Expression"
+																	},
+																	"file_name": {
+																		"value": "'@{variables('file_name')}'",
+																		"type": "Expression"
+																	}
+																},
+																"datasetParameters": {
+																	"source": {
+																		"domain": "@activity('Get Dataset Info').output.firstRow.domain",
+																		"dataset_path": "@activity('Get Dataset Info').output.firstRow.location",
+																		"file_name": {
+																			"value": "@variables('file_name')",
+																			"type": "Expression"
+																		}
+																	},
+																	"Results": {},
+																	"FailedRecords": {
+																		"domain": "@activity('Get Dataset Info').output.firstRow.domain",
+																		"dataset_path": "@activity('Get Dataset Info').output.firstRow.location",
+																		"file_name": {
+																			"value": "@variables('file_name')",
+																			"type": "Expression"
+																		}
+																	}
+																}
+															},
+															"staging": {},
+															"compute": {
+																"coreCount": 8,
+																"computeType": "General"
+															},
+															"traceLevel": "Fine"
+														}
+													}
+												]
+											},
+											{
+												"value": "parquet",
+												"activities": [
+													{
+														"name": "Data flow parquet",
+														"type": "ExecuteDataFlow",
+														"dependsOn": [],
+														"policy": {
+															"timeout": "0.12:00:00",
+															"retry": 0,
+															"retryIntervalInSeconds": 30,
+															"secureOutput": false,
+															"secureInput": false
+														},
+														"userProperties": [],
+														"typeProperties": {
+															"dataflow": {
+																"referenceName": "dataflow_parquet",
+																"type": "DataFlowReference",
+																"parameters": {
+																	"rule_list": {
+																		"value": "@variables('rule_list')",
+																		"type": "Expression"
+																	},
+																	"total_rules": {
+																		"value": "@variables('total_rules')",
+																		"type": "Expression"
+																	},
+																	"rule_names": {
+																		"value": "@variables('rule_names')",
+																		"type": "Expression"
+																	},
+																	"col_names": {
+																		"value": "@variables('col_names')",
+																		"type": "Expression"
+																	},
+																	"file_name": {
+																		"value": "'@{variables('file_name')}'",
+																		"type": "Expression"
+																	}
+																},
+																"datasetParameters": {
+																	"source": {
+																		"domain": "@activity('Get Dataset Info').output.firstRow.domain",
+																		"dataset_path": "@activity('Get Dataset Info').output.firstRow.location",
+																		"file_name": {
+																			"value": "@variables('file_name')",
+																			"type": "Expression"
+																		}
+																	},
+																	"Results": {},
+																	"FailedRecords": {
+																		"domain": "@activity('Get Dataset Info').output.firstRow.domain",
+																		"dataset_path": "@activity('Get Dataset Info').output.firstRow.location",
+																		"file_name": {
+																			"value": "@variables('file_name')",
+																			"type": "Expression"
+																		}
+																	}
+																}
+															},
+															"staging": {},
+															"compute": {
+																"coreCount": 8,
+																"computeType": "General"
+															},
+															"traceLevel": "Fine"
+														}
+													}
+												]
+											},
+											{
+												"value": "json",
+												"activities": [
+													{
+														"name": "Data flow json",
+														"type": "ExecuteDataFlow",
+														"dependsOn": [],
+														"policy": {
+															"timeout": "0.12:00:00",
+															"retry": 0,
+															"retryIntervalInSeconds": 30,
+															"secureOutput": false,
+															"secureInput": false
+														},
+														"userProperties": [],
+														"typeProperties": {
+															"dataflow": {
+																"referenceName": "dataflow_json",
+																"type": "DataFlowReference",
+																"parameters": {
+																	"rule_list": {
+																		"value": "@variables('rule_list')",
+																		"type": "Expression"
+																	},
+																	"total_rules": {
+																		"value": "@variables('total_rules')",
+																		"type": "Expression"
+																	},
+																	"rule_names": {
+																		"value": "@variables('rule_names')",
+																		"type": "Expression"
+																	},
+																	"col_names": {
+																		"value": "@variables('col_names')",
+																		"type": "Expression"
+																	},
+																	"file_name": {
+																		"value": "'@{variables('file_name')}'",
+																		"type": "Expression"
+																	}
+																},
+																"datasetParameters": {
+																	"source": {
+																		"domain": "@activity('Get Dataset Info').output.firstRow.domain",
+																		"dataset_path": "@activity('Get Dataset Info').output.firstRow.location",
+																		"file_name": {
+																			"value": "@variables('file_name')",
+																			"type": "Expression"
+																		}
+																	},
+																	"Results": {},
+																	"FailedRecords": {
+																		"domain": "@activity('Get Dataset Info').output.firstRow.domain",
+																		"dataset_path": "@activity('Get Dataset Info').output.firstRow.location",
+																		"file_name": {
+																			"value": "@variables('file_name')",
+																			"type": "Expression"
+																		}
+																	}
+																}
+															},
+															"staging": {},
+															"compute": {
+																"coreCount": 8,
+																"computeType": "General"
+															},
+															"traceLevel": "Fine"
+														}
+													}
+												]
+											}
+										],
+										"defaultActivities": [
+											{
+												"name": "Fail1",
+												"type": "Fail",
+												"dependsOn": [],
+												"userProperties": [],
+												"typeProperties": {
+													"message": "Please enter a valid file format",
+													"errorCode": "001"
+												}
+											}
+										]
+									}
+								},
+								{
+									"name": "Set file_name variable",
+									"type": "SetVariable",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "file_name",
+										"value": {
+											"value": "@item().name",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						}
 					}
 				],
 				"policy": {
@@ -316,11 +539,13 @@
 					"datasetID": {
 						"type": "int"
 					},
-					"startDate": {
-						"type": "string"
+					"startTime": {
+						"type": "string",
+						"defaultValue": "2/17/2023, 12:00:00 AM"
 					},
-					"endDate": {
-						"type": "string"
+					"endTime": {
+						"type": "string",
+						"defaultValue": "2/18/2023, 12:00:00 AM"
 					}
 				},
 				"variables": {
@@ -335,6 +560,15 @@
 					},
 					"rule_names": {
 						"type": "Array"
+					},
+					"file_name": {
+						"type": "String"
+					},
+					"rule_expr": {
+						"type": "String"
+					},
+					"broken_expr": {
+						"type": "Array"
 					}
 				},
 				"annotations": [],
@@ -342,8 +576,653 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/datasets/AzureSqlTable1')]",
-				"[concat(variables('factoryId'), '/datasets/dataset1')]",
-				"[concat(variables('factoryId'), '/dataflows/dataflow1')]"
+				"[concat(variables('factoryId'), '/datasets/csv_source')]",
+				"[concat(variables('factoryId'), '/dataflows/dataflow_csv')]",
+				"[concat(variables('factoryId'), '/dataflows/dataflow_parquet')]",
+				"[concat(variables('factoryId'), '/dataflows/dataflow_json')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pipeline2')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Get Dataset Info",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": {
+									"value": "@concat(' select * from [dbo].[dataset_info] where dataset_id  = \n', string(pipeline().parameters.datasetID))",
+									"type": "Expression"
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "AzureSqlTable1",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "Get Metadata",
+						"type": "GetMetadata",
+						"dependsOn": [
+							{
+								"activity": "Get Dataset Info",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "csv_source",
+								"type": "DatasetReference",
+								"parameters": {
+									"domain": {
+										"value": "@activity('Get Dataset Info').output.firstRow.domain",
+										"type": "Expression"
+									},
+									"dataset_path": {
+										"value": "@activity('Get Dataset Info').output.firstRow.location",
+										"type": "Expression"
+									},
+									"file_name": "/"
+								}
+							},
+							"fieldList": [
+								"childItems"
+							],
+							"storeSettings": {
+								"type": "AzureBlobFSReadSettings",
+								"recursive": true,
+								"modifiedDatetimeStart": {
+									"value": "@pipeline().parameters.startTime",
+									"type": "Expression"
+								},
+								"modifiedDatetimeEnd": {
+									"value": "@pipeline().parameters.endTime",
+									"type": "Expression"
+								},
+								"enablePartitionDiscovery": false
+							},
+							"formatSettings": {
+								"type": "DelimitedTextReadSettings"
+							}
+						}
+					},
+					{
+						"name": "Set total_rules",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "ForEachRule",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "total_rules",
+							"value": {
+								"value": "@string(length(variables('rule_list')))",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "ForEachFiles",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Get Metadata",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "Set total_rules",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Get Metadata').output.childItems",
+								"type": "Expression"
+							},
+							"isSequential": true,
+							"activities": [
+								{
+									"name": "Switch File Type",
+									"type": "Switch",
+									"dependsOn": [
+										{
+											"activity": "Set file_name variable",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"on": {
+											"value": "@activity('Get Dataset Info').output.firstRow.file_type",
+											"type": "Expression"
+										},
+										"cases": [
+											{
+												"value": "csv",
+												"activities": [
+													{
+														"name": "Data flow csv",
+														"type": "ExecuteDataFlow",
+														"dependsOn": [],
+														"policy": {
+															"timeout": "0.12:00:00",
+															"retry": 0,
+															"retryIntervalInSeconds": 30,
+															"secureOutput": false,
+															"secureInput": false
+														},
+														"userProperties": [],
+														"typeProperties": {
+															"dataflow": {
+																"referenceName": "dataflow_csv",
+																"type": "DataFlowReference",
+																"parameters": {
+																	"rule_list": {
+																		"value": "@variables('rule_list')",
+																		"type": "Expression"
+																	},
+																	"total_rules": {
+																		"value": "@variables('total_rules')",
+																		"type": "Expression"
+																	},
+																	"rule_names": {
+																		"value": "@variables('rule_names')",
+																		"type": "Expression"
+																	},
+																	"col_names": {
+																		"value": "@variables('col_names')",
+																		"type": "Expression"
+																	},
+																	"file_name": {
+																		"value": "'@{variables('file_name')}'",
+																		"type": "Expression"
+																	}
+																},
+																"datasetParameters": {
+																	"source": {
+																		"domain": "@activity('Get Dataset Info').output.firstRow.domain",
+																		"dataset_path": "@activity('Get Dataset Info').output.firstRow.location",
+																		"file_name": {
+																			"value": "@variables('file_name')",
+																			"type": "Expression"
+																		}
+																	},
+																	"Results": {},
+																	"FailedRecords": {
+																		"domain": "@activity('Get Dataset Info').output.firstRow.domain",
+																		"dataset_path": "@activity('Get Dataset Info').output.firstRow.location",
+																		"file_name": "@variables('file_name')"
+																	}
+																}
+															},
+															"staging": {},
+															"compute": {
+																"coreCount": 8,
+																"computeType": "General"
+															},
+															"traceLevel": "Fine"
+														}
+													}
+												]
+											},
+											{
+												"value": "parquet",
+												"activities": [
+													{
+														"name": "Data flow parquet",
+														"type": "ExecuteDataFlow",
+														"dependsOn": [],
+														"policy": {
+															"timeout": "0.12:00:00",
+															"retry": 0,
+															"retryIntervalInSeconds": 30,
+															"secureOutput": false,
+															"secureInput": false
+														},
+														"userProperties": [],
+														"typeProperties": {
+															"dataflow": {
+																"referenceName": "dataflow_parquet",
+																"type": "DataFlowReference",
+																"parameters": {
+																	"rule_list": {
+																		"value": "@variables('rule_list')",
+																		"type": "Expression"
+																	},
+																	"total_rules": {
+																		"value": "@variables('total_rules')",
+																		"type": "Expression"
+																	},
+																	"rule_names": {
+																		"value": "@variables('rule_names')",
+																		"type": "Expression"
+																	},
+																	"col_names": {
+																		"value": "@variables('col_names')",
+																		"type": "Expression"
+																	},
+																	"file_name": {
+																		"value": "'@{variables('file_name')}'",
+																		"type": "Expression"
+																	}
+																},
+																"datasetParameters": {
+																	"source": {
+																		"domain": "@activity('Get Dataset Info').output.firstRow.domain",
+																		"dataset_path": "@activity('Get Dataset Info').output.firstRow.location",
+																		"file_name": {
+																			"value": "@variables('file_name')",
+																			"type": "Expression"
+																		}
+																	},
+																	"Results": {},
+																	"FailedRecords": {
+																		"domain": "@activity('Get Dataset Info').output.firstRow.domain",
+																		"dataset_path": "@activity('Get Dataset Info').output.firstRow.location",
+																		"file_name": "@variables('file_name')"
+																	}
+																}
+															},
+															"staging": {},
+															"compute": {
+																"coreCount": 8,
+																"computeType": "General"
+															},
+															"traceLevel": "Fine"
+														}
+													}
+												]
+											},
+											{
+												"value": "json",
+												"activities": [
+													{
+														"name": "Data flow json",
+														"type": "ExecuteDataFlow",
+														"dependsOn": [],
+														"policy": {
+															"timeout": "0.12:00:00",
+															"retry": 0,
+															"retryIntervalInSeconds": 30,
+															"secureOutput": false,
+															"secureInput": false
+														},
+														"userProperties": [],
+														"typeProperties": {
+															"dataflow": {
+																"referenceName": "dataflow_json",
+																"type": "DataFlowReference",
+																"parameters": {
+																	"rule_list": {
+																		"value": "@variables('rule_list')",
+																		"type": "Expression"
+																	},
+																	"total_rules": {
+																		"value": "@variables('total_rules')",
+																		"type": "Expression"
+																	},
+																	"rule_names": {
+																		"value": "@variables('rule_names')",
+																		"type": "Expression"
+																	},
+																	"col_names": {
+																		"value": "@variables('col_names')",
+																		"type": "Expression"
+																	},
+																	"file_name": {
+																		"value": "'@{variables('file_name')}'",
+																		"type": "Expression"
+																	}
+																},
+																"datasetParameters": {
+																	"source": {
+																		"domain": "@activity('Get Dataset Info').output.firstRow.domain",
+																		"dataset_path": "@activity('Get Dataset Info').output.firstRow.location",
+																		"file_name": {
+																			"value": "@variables('file_name')",
+																			"type": "Expression"
+																		}
+																	},
+																	"Results": {},
+																	"FailedRecords": {
+																		"domain": "@activity('Get Dataset Info').output.firstRow.domain",
+																		"dataset_path": "@activity('Get Dataset Info').output.firstRow.location",
+																		"file_name": "@variables('file_name')"
+																	}
+																}
+															},
+															"staging": {},
+															"compute": {
+																"coreCount": 8,
+																"computeType": "General"
+															},
+															"traceLevel": "Fine"
+														}
+													}
+												]
+											}
+										],
+										"defaultActivities": [
+											{
+												"name": "Fail1",
+												"type": "Fail",
+												"dependsOn": [],
+												"userProperties": [],
+												"typeProperties": {
+													"message": "Please enter a valid file format",
+													"errorCode": "001"
+												}
+											}
+										]
+									}
+								},
+								{
+									"name": "Set file_name variable",
+									"type": "SetVariable",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "file_name",
+										"value": {
+											"value": "@item().name",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "ForEachRule",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Get User Input",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "Get Dataset Info",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Get user input').output.value",
+								"type": "Expression"
+							},
+							"isSequential": true,
+							"activities": [
+								{
+									"name": "Get rule template",
+									"type": "Lookup",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "AzureSqlSource",
+											"sqlReaderQuery": {
+												"value": "@concat('select *\nfrom dbo.data_quality_rules_new\nwhere rule_id =',string(item().rule_id))",
+												"type": "Expression"
+											},
+											"queryTimeout": "02:00:00",
+											"partitionOption": "None"
+										},
+										"dataset": {
+											"referenceName": "AzureSqlTable1",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									}
+								},
+								{
+									"name": "Compose rules",
+									"type": "Switch",
+									"dependsOn": [
+										{
+											"activity": "Get rule template",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"on": {
+											"value": "@string(activity('Get rule template').output.firstRow.num_params)",
+											"type": "Expression"
+										},
+										"cases": [
+											{
+												"value": "1",
+												"activities": [
+													{
+														"name": "Rules with 1 param",
+														"type": "SetVariable",
+														"dependsOn": [],
+														"userProperties": [],
+														"typeProperties": {
+															"variableName": "rule_expr",
+															"value": {
+																"value": "@concat(split(string(activity('Get rule template').output.firstRow.rule_expression), '{}')[0], item().column_name, split(string(activity('Get rule template').output.firstRow.rule_expression), '{}')[1], split(string(item().extra_params), ',')[0], split(string(activity('Get rule template').output.firstRow.rule_expression), '{}')[2])",
+																"type": "Expression"
+															}
+														}
+													}
+												]
+											},
+											{
+												"value": "2",
+												"activities": [
+													{
+														"name": "Rules with 2 params",
+														"type": "SetVariable",
+														"dependsOn": [],
+														"userProperties": [],
+														"typeProperties": {
+															"variableName": "rule_expr",
+															"value": {
+																"value": "@concat(split(string(activity('Get rule template').output.firstRow.rule_expression), '{}')[0], item().column_name, split(string(activity('Get rule template').output.firstRow.rule_expression), '{}')[1], split(string(item().extra_params), ',')[0], split(string(activity('Get rule template').output.firstRow.rule_expression), '{}')[2], split(string(item().extra_params), ',')[1], split(string(activity('Get rule template').output.firstRow.rule_expression), '{}')[3])",
+																"type": "Expression"
+															}
+														}
+													}
+												]
+											}
+										],
+										"defaultActivities": [
+											{
+												"name": "Rules no param",
+												"type": "SetVariable",
+												"dependsOn": [],
+												"userProperties": [],
+												"typeProperties": {
+													"variableName": "rule_expr",
+													"value": {
+														"value": "@concat(split(string(activity('Get rule template').output.firstRow.rule_expression), '{}')[0], item().column_name, split(string(activity('Get rule template').output.firstRow.rule_expression), '{}')[1])",
+														"type": "Expression"
+													}
+												}
+											}
+										]
+									}
+								},
+								{
+									"name": "Append to rule list",
+									"type": "AppendVariable",
+									"dependsOn": [
+										{
+											"activity": "Compose rules",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "rule_list",
+										"value": {
+											"value": "@variables('rule_expr')",
+											"type": "Expression"
+										}
+									}
+								},
+								{
+									"name": "Append column names",
+									"type": "AppendVariable",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "col_names",
+										"value": {
+											"value": "@item().column_name",
+											"type": "Expression"
+										}
+									}
+								},
+								{
+									"name": "Append rule names",
+									"type": "AppendVariable",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "rule_names",
+										"value": {
+											"value": "@item().applied_rule_name",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "Get User Input",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": {
+									"value": "@concat('select *\nfrom dbo.data_quality_user_input\nwhere dataset_id =',string(pipeline().parameters.datasetID))",
+									"type": "Expression"
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "AzureSqlTable1",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"firstRowOnly": false
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"parameters": {
+					"datasetID": {
+						"type": "int"
+					},
+					"startTime": {
+						"type": "string",
+						"defaultValue": "2/17/2023, 12:00:00 AM"
+					},
+					"endTime": {
+						"type": "string",
+						"defaultValue": "2/18/2023, 12:00:00 AM"
+					}
+				},
+				"variables": {
+					"rule_list": {
+						"type": "Array"
+					},
+					"total_rules": {
+						"type": "String"
+					},
+					"col_names": {
+						"type": "Array"
+					},
+					"rule_names": {
+						"type": "Array"
+					},
+					"file_name": {
+						"type": "String"
+					},
+					"rule_expr": {
+						"type": "String"
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2022-10-28T14:22:09Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/AzureSqlTable1')]",
+				"[concat(variables('factoryId'), '/datasets/csv_source')]",
+				"[concat(variables('factoryId'), '/dataflows/dataflow_csv')]",
+				"[concat(variables('factoryId'), '/dataflows/dataflow_parquet')]",
+				"[concat(variables('factoryId'), '/dataflows/dataflow_json')]"
 			]
 		},
 		{
@@ -395,67 +1274,7 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/Json1')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "AdlsDQ",
-					"type": "LinkedServiceReference"
-				},
-				"annotations": [],
-				"type": "Json",
-				"typeProperties": {
-					"location": {
-						"type": "AzureBlobFSLocation",
-						"folderPath": "employee/result",
-						"fileSystem": "devoteam"
-					}
-				},
-				"schema": {}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/AdlsDQ')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/data_quality_rule_results')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "AzureSqlDatabaseDataQ",
-					"type": "LinkedServiceReference"
-				},
-				"annotations": [],
-				"type": "AzureSqlTable",
-				"schema": [
-					{
-						"name": "total_records",
-						"type": "bigint",
-						"precision": 19
-					},
-					{
-						"name": "rule_name",
-						"type": "varchar"
-					},
-					{
-						"name": "failed_records",
-						"type": "int",
-						"precision": 10
-					}
-				],
-				"typeProperties": {
-					"schema": "dbo",
-					"table": "data_quality_rule_results"
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/AzureSqlDatabaseDataQ')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/dataset1')]",
+			"name": "[concat(parameters('factoryName'), '/csv_source')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
@@ -469,6 +1288,9 @@
 					},
 					"dataset_path": {
 						"type": "String"
+					},
+					"file_name": {
+						"type": "string"
 					}
 				},
 				"annotations": [],
@@ -476,6 +1298,10 @@
 				"typeProperties": {
 					"location": {
 						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@dataset().file_name",
+							"type": "Expression"
+						},
 						"folderPath": {
 							"value": "@dataset().dataset_path",
 							"type": "Expression"
@@ -497,6 +1323,46 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/data_quality_rule_results')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureSqlDatabaseDataQ",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "total_record",
+						"type": "bigint",
+						"precision": 19
+					},
+					{
+						"name": "rule_name",
+						"type": "varchar"
+					},
+					{
+						"name": "failed_record",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "file_name",
+						"type": "varchar"
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "data_quality_rule_results"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureSqlDatabaseDataQ')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/failed_records')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -511,6 +1377,9 @@
 					},
 					"dataset_path": {
 						"type": "string"
+					},
+					"file_name": {
+						"type": "string"
 					}
 				},
 				"annotations": [],
@@ -518,11 +1387,10 @@
 				"typeProperties": {
 					"location": {
 						"type": "AzureBlobFSLocation",
-						"fileName": {
-							"value": "@dataset().dataset_path",
+						"folderPath": {
+							"value": "@concat('results', '/', dataset().dataset_path, '/', dataset().file_name)",
 							"type": "Expression"
 						},
-						"folderPath": "results",
 						"fileSystem": {
 							"value": "@dataset().domain",
 							"type": "Expression"
@@ -530,6 +1398,7 @@
 					},
 					"columnDelimiter": ",",
 					"escapeChar": "\\",
+					"firstRowAsHeader": true,
 					"quoteChar": "\""
 				},
 				"schema": [
@@ -543,6 +1412,97 @@
 						"type": "String"
 					}
 				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AdlsDQ')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/json_source')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AdlsDQ",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"domain": {
+						"type": "string"
+					},
+					"dataset_path": {
+						"type": "string"
+					},
+					"file_name": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "Json",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@dataset().file_name",
+							"type": "Expression"
+						},
+						"folderPath": {
+							"value": "@dataset().dataset_path",
+							"type": "Expression"
+						},
+						"fileSystem": {
+							"value": "@dataset().domain",
+							"type": "Expression"
+						}
+					}
+				},
+				"schema": {}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AdlsDQ')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/parquet_source')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AdlsDQ",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"domain": {
+						"type": "string"
+					},
+					"dataset_path": {
+						"type": "string"
+					},
+					"file_name": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "Parquet",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@dataset().file_name",
+							"type": "Expression"
+						},
+						"folderPath": {
+							"value": "@dataset().dataset_path",
+							"type": "Expression"
+						},
+						"fileSystem": {
+							"value": "@dataset().domain",
+							"type": "Expression"
+						}
+					},
+					"compressionCodec": "snappy"
+				},
+				"schema": []
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/linkedServices/AdlsDQ')]"
@@ -604,7 +1564,7 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/dataflow1')]",
+			"name": "[concat(parameters('factoryName'), '/dataflow_csv')]",
 			"type": "Microsoft.DataFactory/factories/dataflows",
 			"apiVersion": "2018-06-01",
 			"properties": {
@@ -613,7 +1573,7 @@
 					"sources": [
 						{
 							"dataset": {
-								"referenceName": "dataset1",
+								"referenceName": "csv_source",
 								"type": "DatasetReference"
 							},
 							"name": "source"
@@ -649,7 +1609,10 @@
 							"name": "unpivot"
 						},
 						{
-							"name": "AlterRow"
+							"name": "addFileNameandTS"
+						},
+						{
+							"name": "AlterRow1"
 						}
 					],
 					"scriptLines": [
@@ -657,7 +1620,8 @@
 						"     rule_list as string[],",
 						"     total_rules as integer,",
 						"     rule_names as string[],",
-						"     col_names as string[]",
+						"     col_names as string[],",
+						"     file_name as string",
 						"}",
 						"source(allowSchemaDrift: true,",
 						"     validateSchema: false,",
@@ -691,19 +1655,159 @@
 						"     ungroupBy(total_records),",
 						"     lateral: false,",
 						"     ignoreNullPivots: false) ~> unpivot",
-						"unpivot alterRow(upsertIf(true())) ~> AlterRow",
-						"AlterRow sink(allowSchemaDrift: true,",
+						"unpivot derive(file_name = $file_name,",
+						"          insert_ts = currentTimestamp()) ~> addFileNameandTS",
+						"addFileNameandTS alterRow(upsertIf(true())) ~> AlterRow1",
+						"AlterRow1 sink(allowSchemaDrift: true,",
 						"     validateSchema: false,",
 						"     input(",
-						"          total_records as long,",
+						"          total_record as long,",
 						"          rule_name as string,",
-						"          failed_records as integer",
+						"          failed_record as integer,",
+						"          file_name as string",
 						"     ),",
 						"     deletable:false,",
 						"     insertable:true,",
 						"     updateable:false,",
 						"     upsertable:true,",
-						"     keys:['rule_name'],",
+						"     keys:['rule_name','file_name'],",
+						"     format: 'table',",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     errorHandlingOption: 'stopOnFirstError',",
+						"     preCommands: [],",
+						"     postCommands: []) ~> Results",
+						"filterFailedRecords sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     input(",
+						"          Column_1 as string,",
+						"          Column_2 as string,",
+						"          Column_3 as string",
+						"     ),",
+						"     truncate: true,",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> FailedRecords"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/csv_source')]",
+				"[concat(variables('factoryId'), '/datasets/data_quality_rule_results')]",
+				"[concat(variables('factoryId'), '/datasets/failed_records')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/dataflow_json')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "json_source",
+								"type": "DatasetReference"
+							},
+							"name": "source"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "data_quality_rule_results",
+								"type": "DatasetReference"
+							},
+							"name": "Results"
+						},
+						{
+							"dataset": {
+								"referenceName": "failed_records",
+								"type": "DatasetReference"
+							},
+							"name": "FailedRecords"
+						}
+					],
+					"transformations": [
+						{
+							"name": "derivedColumn"
+						},
+						{
+							"name": "aggregate"
+						},
+						{
+							"name": "filterFailedRecords"
+						},
+						{
+							"name": "unpivot"
+						},
+						{
+							"name": "addFileNameandTS"
+						},
+						{
+							"name": "AlterRow1"
+						}
+					],
+					"scriptLines": [
+						"parameters{",
+						"     rule_list as string[],",
+						"     total_rules as integer,",
+						"     rule_names as string[],",
+						"     col_names as string[],",
+						"     file_name as string",
+						"}",
+						"source(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     documentForm: 'documentPerLine') ~> source",
+						"source derive(each(match(iif(1<=$total_rules,equalsIgnoreCase(name,$col_names[1]),false())), $rule_names[1] = expr(expr('iif(1<=$total_rules, $rule_list[1], toString(false()))'))),",
+						"          each(match(iif(2<=$total_rules,equalsIgnoreCase(name,$col_names[2]),false())), $rule_names[2] = expr(expr('iif(2<=$total_rules, $rule_list[2], toString(false()))'))),",
+						"          each(match(iif(3<=$total_rules,equalsIgnoreCase(name,$col_names[3]),false())), $rule_names[3] = expr(expr('iif(3<=$total_rules, $rule_list[3], toString(false()))'))),",
+						"          each(match(iif(4<=$total_rules,equalsIgnoreCase(name,$col_names[4]),false())), $rule_names[4] = expr(expr('iif(4<=$total_rules, $rule_list[4], toString(false()))'))),",
+						"          each(match(iif(5<=$total_rules,equalsIgnoreCase(name,$col_names[5]),false())), $rule_names[5] = expr(expr('iif(5<=$total_rules, $rule_list[5], toString(false()))'))),",
+						"          each(match(iif(6<=$total_rules,equalsIgnoreCase(name,$col_names[6]),false())), $rule_names[6] = expr(expr('iif(6<=$total_rules, $rule_list[6], toString(false()))'))),",
+						"          each(match(iif(7<=$total_rules,equalsIgnoreCase(name,$col_names[7]),false())), $rule_names[7] = expr(expr('iif(7<=$total_rules, $rule_list[7], toString(false()))'))),",
+						"          each(match(iif(8<=$total_rules,equalsIgnoreCase(name,$col_names[8]),false())), $rule_names[8] = expr(expr('iif(8<=$total_rules, $rule_list[8], toString(false()))'))),",
+						"          each(match(iif(9<=$total_rules,equalsIgnoreCase(name,$col_names[9]),false())), $rule_names[9] = expr(expr('iif(9<=$total_rules, $rule_list[9], toString(false()))'))),",
+						"          each(match(iif(10<=$total_rules,equalsIgnoreCase(name,$col_names[10]),false())), $rule_names[10] = expr(expr('iif(10<=$total_rules, $rule_list[10], toString(false()))')))) ~> derivedColumn",
+						"derivedColumn aggregate(total_records = count($rule_names[1]),",
+						"          each(match(name==$rule_names[1]), $$ = toInteger(sum(toInteger($$)))),",
+						"          each(match(name==$rule_names[2]), $$ = toInteger(sum(toInteger($$)))),",
+						"          each(match(name==$rule_names[3]), $$ = toInteger(sum(toInteger($$)))),",
+						"          each(match(name==$rule_names[4]), $$ = toInteger(sum(toInteger($$)))),",
+						"          each(match(name==$rule_names[5]), $$ = toInteger(sum(toInteger($$)))),",
+						"          each(match(name==$rule_names[6]), $$ = toInteger(sum(toInteger($$)))),",
+						"          each(match(name==$rule_names[7]), $$ = toInteger(sum(toInteger($$)))),",
+						"          each(match(name==$rule_names[8]), $$ = toInteger(sum(toInteger($$)))),",
+						"          each(match(name==$rule_names[9]), $$ = toInteger(sum(toInteger($$)))),",
+						"          each(match(name==$rule_names[10]), $$ = toInteger(sum(toInteger($$))))) ~> aggregate",
+						"derivedColumn filter(toInteger(byName($rule_names[1]))==1 || toInteger(byName($rule_names[2]))==1 || toInteger(byName($rule_names[3]))==1 || toInteger(byName($rule_names[4]))==1 || toInteger(byName($rule_names[5]))==1 || toInteger(byName($rule_names[6]))==1 || toInteger(byName($rule_names[7]))==1 || toInteger(byName($rule_names[8]))==1 || toInteger(byName($rule_names[9]))==1 || toInteger(byName($rule_names[10]))==1) ~> filterFailedRecords",
+						"aggregate unpivot(output(",
+						"          rule_name as string,",
+						"          failed_records as integer",
+						"     ),",
+						"     ungroupBy(total_records),",
+						"     lateral: false,",
+						"     ignoreNullPivots: false) ~> unpivot",
+						"unpivot derive(file_name = $file_name,",
+						"          insert_ts = currentTimestamp()) ~> addFileNameandTS",
+						"addFileNameandTS alterRow(upsertIf(true())) ~> AlterRow1",
+						"AlterRow1 sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     input(",
+						"          total_record as long,",
+						"          rule_name as string,",
+						"          failed_record as integer,",
+						"          file_name as string",
+						"     ),",
+						"     deletable:false,",
+						"     insertable:true,",
+						"     updateable:false,",
+						"     upsertable:true,",
+						"     keys:['rule_name','file_name'],",
 						"     format: 'table',",
 						"     skipDuplicateMapInputs: true,",
 						"     skipDuplicateMapOutputs: true,",
@@ -726,7 +1830,143 @@
 				}
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/dataset1')]",
+				"[concat(variables('factoryId'), '/datasets/json_source')]",
+				"[concat(variables('factoryId'), '/datasets/data_quality_rule_results')]",
+				"[concat(variables('factoryId'), '/datasets/failed_records')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/dataflow_parquet')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "parquet_source",
+								"type": "DatasetReference"
+							},
+							"name": "source"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "data_quality_rule_results",
+								"type": "DatasetReference"
+							},
+							"name": "Results"
+						},
+						{
+							"dataset": {
+								"referenceName": "failed_records",
+								"type": "DatasetReference"
+							},
+							"name": "FailedRecords"
+						}
+					],
+					"transformations": [
+						{
+							"name": "derivedColumn"
+						},
+						{
+							"name": "aggregate"
+						},
+						{
+							"name": "filterFailedRecords"
+						},
+						{
+							"name": "unpivot"
+						},
+						{
+							"name": "addFileNameandTS"
+						},
+						{
+							"name": "AlterRow1"
+						}
+					],
+					"scriptLines": [
+						"parameters{",
+						"     rule_list as string[],",
+						"     total_rules as integer,",
+						"     rule_names as string[],",
+						"     col_names as string[],",
+						"     file_name as string",
+						"}",
+						"source(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'parquet') ~> source",
+						"source derive(each(match(iif(1<=$total_rules,equalsIgnoreCase(name,$col_names[1]),false())), $rule_names[1] = expr(expr('iif(1<=$total_rules, $rule_list[1], toString(false()))'))),",
+						"          each(match(iif(2<=$total_rules,equalsIgnoreCase(name,$col_names[2]),false())), $rule_names[2] = expr(expr('iif(2<=$total_rules, $rule_list[2], toString(false()))'))),",
+						"          each(match(iif(3<=$total_rules,equalsIgnoreCase(name,$col_names[3]),false())), $rule_names[3] = expr(expr('iif(3<=$total_rules, $rule_list[3], toString(false()))'))),",
+						"          each(match(iif(4<=$total_rules,equalsIgnoreCase(name,$col_names[4]),false())), $rule_names[4] = expr(expr('iif(4<=$total_rules, $rule_list[4], toString(false()))'))),",
+						"          each(match(iif(5<=$total_rules,equalsIgnoreCase(name,$col_names[5]),false())), $rule_names[5] = expr(expr('iif(5<=$total_rules, $rule_list[5], toString(false()))'))),",
+						"          each(match(iif(6<=$total_rules,equalsIgnoreCase(name,$col_names[6]),false())), $rule_names[6] = expr(expr('iif(6<=$total_rules, $rule_list[6], toString(false()))'))),",
+						"          each(match(iif(7<=$total_rules,equalsIgnoreCase(name,$col_names[7]),false())), $rule_names[7] = expr(expr('iif(7<=$total_rules, $rule_list[7], toString(false()))'))),",
+						"          each(match(iif(8<=$total_rules,equalsIgnoreCase(name,$col_names[8]),false())), $rule_names[8] = expr(expr('iif(8<=$total_rules, $rule_list[8], toString(false()))'))),",
+						"          each(match(iif(9<=$total_rules,equalsIgnoreCase(name,$col_names[9]),false())), $rule_names[9] = expr(expr('iif(9<=$total_rules, $rule_list[9], toString(false()))'))),",
+						"          each(match(iif(10<=$total_rules,equalsIgnoreCase(name,$col_names[10]),false())), $rule_names[10] = expr(expr('iif(10<=$total_rules, $rule_list[10], toString(false()))')))) ~> derivedColumn",
+						"derivedColumn aggregate(total_records = count($rule_names[1]),",
+						"          each(match(name==$rule_names[1]), $$ = toInteger(sum(toInteger($$)))),",
+						"          each(match(name==$rule_names[2]), $$ = toInteger(sum(toInteger($$)))),",
+						"          each(match(name==$rule_names[3]), $$ = toInteger(sum(toInteger($$)))),",
+						"          each(match(name==$rule_names[4]), $$ = toInteger(sum(toInteger($$)))),",
+						"          each(match(name==$rule_names[5]), $$ = toInteger(sum(toInteger($$)))),",
+						"          each(match(name==$rule_names[6]), $$ = toInteger(sum(toInteger($$)))),",
+						"          each(match(name==$rule_names[7]), $$ = toInteger(sum(toInteger($$)))),",
+						"          each(match(name==$rule_names[8]), $$ = toInteger(sum(toInteger($$)))),",
+						"          each(match(name==$rule_names[9]), $$ = toInteger(sum(toInteger($$)))),",
+						"          each(match(name==$rule_names[10]), $$ = toInteger(sum(toInteger($$))))) ~> aggregate",
+						"derivedColumn filter(toInteger(byName($rule_names[1]))==1 || toInteger(byName($rule_names[2]))==1 || toInteger(byName($rule_names[3]))==1 || toInteger(byName($rule_names[4]))==1 || toInteger(byName($rule_names[5]))==1 || toInteger(byName($rule_names[6]))==1 || toInteger(byName($rule_names[7]))==1 || toInteger(byName($rule_names[8]))==1 || toInteger(byName($rule_names[9]))==1 || toInteger(byName($rule_names[10]))==1) ~> filterFailedRecords",
+						"aggregate unpivot(output(",
+						"          rule_name as string,",
+						"          failed_records as integer",
+						"     ),",
+						"     ungroupBy(total_records),",
+						"     lateral: false,",
+						"     ignoreNullPivots: false) ~> unpivot",
+						"unpivot derive(file_name = $file_name,",
+						"          insert_ts = currentTimestamp()) ~> addFileNameandTS",
+						"addFileNameandTS alterRow(upsertIf(true())) ~> AlterRow1",
+						"AlterRow1 sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     input(",
+						"          total_record as long,",
+						"          rule_name as string,",
+						"          failed_record as integer,",
+						"          file_name as string",
+						"     ),",
+						"     deletable:false,",
+						"     insertable:true,",
+						"     updateable:false,",
+						"     upsertable:true,",
+						"     keys:['rule_name','file_name'],",
+						"     format: 'table',",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     errorHandlingOption: 'stopOnFirstError',",
+						"     preCommands: [],",
+						"     postCommands: []) ~> Results",
+						"filterFailedRecords sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     input(",
+						"          Column_1 as string,",
+						"          Column_2 as string,",
+						"          Column_3 as string",
+						"     ),",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> FailedRecords"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/parquet_source')]",
 				"[concat(variables('factoryId'), '/datasets/data_quality_rule_results')]",
 				"[concat(variables('factoryId'), '/datasets/failed_records')]"
 			]
