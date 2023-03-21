@@ -298,7 +298,11 @@
 															},
 															"FailedRecords": {
 																"domain": "@activity('Get Dataset Info').output.firstRow.domain",
-																"dataset_path": "@activity('Get Dataset Info').output.firstRow.location"
+																"dataset_path": "@activity('Get Dataset Info').output.firstRow.location",
+																"file_name": {
+																	"value": "@variables('file_name')",
+																	"type": "Expression"
+																}
 															}
 														}
 													},
@@ -363,7 +367,11 @@
 															},
 															"FailedRecords": {
 																"domain": "@activity('Get Dataset Info').output.firstRow.domain",
-																"dataset_path": "@activity('Get Dataset Info').output.firstRow.location"
+																"dataset_path": "@activity('Get Dataset Info').output.firstRow.location",
+																"file_name": {
+																	"value": "@variables('file_name')",
+																	"type": "Expression"
+																}
 															}
 														}
 													},
@@ -428,7 +436,11 @@
 															},
 															"FailedRecords": {
 																"domain": "@activity('Get Dataset Info').output.firstRow.domain",
-																"dataset_path": "@activity('Get Dataset Info').output.firstRow.location"
+																"dataset_path": "@activity('Get Dataset Info').output.firstRow.location",
+																"file_name": {
+																	"value": "@variables('file_name')",
+																	"type": "Expression"
+																}
 															}
 														}
 													},
