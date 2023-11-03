@@ -1,0 +1,9 @@
+{
+	"name": "data-quality-adf",
+	"location": "westeurope",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "78637e92-6df4-4d8e-b2ab-58709f2384dd",
+		"tenantId": "f82b3c62-b635-402b-afa2-a1a807bbfd42"
+	}
+}
