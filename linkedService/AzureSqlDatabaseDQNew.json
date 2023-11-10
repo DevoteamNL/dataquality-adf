@@ -1,12 +1,11 @@
 {
 	"name": "AzureSqlDatabaseDQNew",
-	"type": "Microsoft.DataFactory/factories/linkedservices",
 	"properties": {
 		"annotations": [],
 		"type": "AzureSqlDatabase",
 		"typeProperties": {
-			"connectionString": "integrated security=False;encrypt=True;connection timeout=30;data source=data-quality-sql-server-01.database.windows.net;initial catalog=data-quality-db;user id=dq-sql-server-admin",
-			"encryptedCredential": "ew0KICAiVmVyc2lvbiI6ICIyMDE3LTExLTMwIiwNCiAgIlByb3RlY3Rpb25Nb2RlIjogIktleSIsDQogICJTZWNyZXRDb250ZW50VHlwZSI6ICJQbGFpbnRleHQiLA0KICAiQ3JlZGVudGlhbElkIjogIkRBVEFGQUNUT1JZQDJCODE0RjdELTQzMjYtNEI0OS04QzRDLTZBMEU0QjQ5RjRFMl9mMDc4NzZiZC03OWNiLTQ4MDctODgwOC04ZGJkNDJiOGFjOTciDQp9"
+			"connectionString": "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=data-quality-sql-server-01.database.windows.net;Initial Catalog=data-quality-db"
 		}
-	}
+	},
+	"type": "Microsoft.DataFactory/factories/linkedservices"
 }
